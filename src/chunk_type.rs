@@ -1,10 +1,9 @@
-use std::error::Error;
 use std::str::FromStr;
 use std::fmt;
 use std::str;
 #[derive(PartialEq,Eq,Debug)]
 pub struct ChunkType {
-    chunk_type: Vec<u8>
+    pub chunk_type: Vec<u8>
 }
 
 /// 实现从u8数组转换为一个块类型，未进行错误处理
