@@ -48,6 +48,7 @@ impl TryFrom<&[u8]> for Chunk {
     }
 }
 
+/// 仅打印了数据区的内容，未打印长度，块类型
 impl fmt::Display for Chunk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = str::from_utf8(&self.date).unwrap();
@@ -84,7 +85,7 @@ impl Chunk {
         Ok(s)
     }
 
-    fn as_bytes(&self) -> Vec<u8> {
+    pub fn as_bytes(&self) -> Vec<u8> {
         let chunk_bytes:Vec<u8> = self.length.to_be_bytes().iter().
         chain(self.ctype.chunk_type.iter()).
         chain(self.date.iter()).
