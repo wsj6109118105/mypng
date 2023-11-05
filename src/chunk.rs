@@ -1,7 +1,8 @@
 use crate::chunk_type::ChunkType;
 use std::fmt;
 use std::str;
-
+use crc;
+use crc::Crc;
 pub struct Chunk {
     length: u32,
     ctype: ChunkType,
@@ -14,9 +15,9 @@ impl TryFrom<&[u8]> for Chunk {
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let l = value.len();
-        // 计算crc校验值是否正确
+        // 字节序列不能少于12字节
         if l < 12 {
-            Err("字节序列出错")
+            Err("图片字节序列出错")
         }else {
             let mut chunk = Chunk {
                 length: 0,
@@ -33,7 +34,16 @@ impl TryFrom<&[u8]> for Chunk {
             }
             let cr = [value[l-4],value[l-3],value[l-2],value[l-1]];
             chunk.chcrc = u32::from_be_bytes(cr);
-            Ok(chunk)
+            // 计算实际crc校验码
+            let c:Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
+            let cdate:Vec<u8> = chunk.ctype.chunk_type.iter().chain(chunk.date.iter()).copied().collect();
+            let real_crc = c.checksum(&cdate);
+            // 查看图片校验码是否正确
+            if real_crc == chunk.chcrc {
+                Ok(chunk)
+            }else {
+                Err("图片crc校验码出错")
+            }
         }
     }
 }
@@ -47,31 +57,41 @@ impl fmt::Display for Chunk {
 
 impl Chunk {
     fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
-
+        let c:Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
+        let crcdate:Vec<u8> = chunk_type.chunk_type.iter().chain(data.iter()).cloned().collect();
+        Chunk { length: data.len() as u32, ctype: chunk_type, date: data, chcrc: c.checksum(&crcdate) }
     }
 
     fn length(&self) -> u32 {
-
+        self.length
     }
 
     fn chunk_type(&self) -> &ChunkType {
-
+        &self.ctype
     }
 
     fn data(&self) -> &[u8] {
-
+        &self.date
     }
 
     fn crc(&self) -> u32 {
-
+        self.chcrc
     }
 
-    fn data_as_string(&self) -> Result<String> {
-
+    fn data_as_string(&self) -> Result<String,()> {
+        let data = self.data().clone();
+        let s = String::from_utf8(data.to_vec()).unwrap();
+        Ok(s)
     }
 
     fn as_bytes(&self) -> Vec<u8> {
-        
+        let chunk_bytes:Vec<u8> = self.length.to_be_bytes().iter().
+        chain(self.ctype.chunk_type.iter()).
+        chain(self.date.iter()).
+        chain(self.chcrc.to_be_bytes().iter()).
+        copied().
+        collect();
+        chunk_bytes
     }
 }
 
