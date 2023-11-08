@@ -1,4 +1,5 @@
 use core::fmt;
+use std::fmt::write;
 
 use crate::chunk::Chunk;
 
@@ -8,38 +9,65 @@ pub struct Png{
     chunks: Vec<Chunk>,
 }
 
-pub const STANDARD_HEADER:[u8;8] = [137,80,78,71,13,10,26,10];
+
 
 impl TryFrom<&[u8]> for Png {
     type Error = &'static str;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-
+        let v_head:[u8;8] = [value[0],value[1],value[2],value[3],value[4],value[5],value[6],value[7]];
+        if v_head != Png::STANDARD_HEADER {
+            Err("头部不符合PNG文件格式")
+        } else {
+            let mut png = Png {
+                head: v_head,
+                chunks: Vec::new(),
+            };
+            let mut i = 8;
+            let l = value.len();
+            while i < l {
+                let length = u32::from_be_bytes([value[i],value[i+1],value[i+2],value[i+3]]);
+                let end = i as usize + length as usize + 12;
+                let chunk = Chunk::try_from(&value[i..end]).unwrap();
+                png.chunks.push(chunk);
+                i = end;
+            }
+            Ok(png)
+        }
     }
 }
 
 impl fmt::Display for Png {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = str::from_utf8(&self.date).unwrap();
-        write!(f, "{}",s)
+        write!(f, "{:?}",self.head);
+        write!(f, "{:?}",self.chunks)
     }
 }
 
 impl Png {
-    fn from_chunks(chunks: Vec<Chunk>) -> Png {
+    pub const STANDARD_HEADER:[u8;8] = [137,80,78,71,13,10,26,10];
 
+    fn from_chunks(chunks: Vec<Chunk>) -> Png {
+        Png { head: Png::STANDARD_HEADER, chunks: chunks }
     }
 
     fn append_chunk(&mut self, chunk: Chunk) {
-
+        self.chunks.push(chunk);
     }
 
     fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk,String> {
-
+        let length = self.chunks.len();
+        for i in 0..length {
+            if self.chunks[i].ctype.to_string() == chunk_type.to_string() {
+                let chunk = self.chunks.remove(i);
+                return Ok(chunk)
+            }
+        }
+        Err("未找到指定块".to_string())
     }
 
     fn header(&self) -> &[u8; 8] {
-        &STANDARD_HEADER
+        &Png::STANDARD_HEADER
     }
 
     fn chunks(&self) -> &[Chunk] {
@@ -47,11 +75,24 @@ impl Png {
     }
 
     fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
-
+        for i in &self.chunks {
+            if i.ctype.to_string() == chunk_type.to_string() {
+                return Some(&i)
+            }
+        }
+        None
     }
 
     fn as_bytes(&self) -> Vec<u8> {
-
+        let mut res = Vec::new();
+        for i in self.head {
+            res.push(i);
+        }
+        for i in &self.chunks {
+            let mut a = i.as_bytes();
+            res.append(&mut a);
+        }
+        res
     }
 }
 
@@ -76,10 +117,10 @@ mod tests {
         Png::from_chunks(chunks)
     }
 
-    fn chunk_from_strings(chunk_type: &str, data: &str) -> Result<Chunk> {
+    fn chunk_from_strings(chunk_type: &str, data: &str) -> Result<Chunk,()> {
         use std::str::FromStr;
 
-        let chunk_type = ChunkType::from_str(chunk_type)?;
+        let chunk_type = ChunkType::from_str(chunk_type).unwrap();
         let data: Vec<u8> = data.bytes().collect();
 
         Ok(Chunk::new(chunk_type, data))

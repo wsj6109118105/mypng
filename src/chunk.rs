@@ -3,9 +3,10 @@ use std::fmt;
 use std::str;
 use crc;
 use crc::Crc;
+#[derive(Debug)]
 pub struct Chunk {
     length: u32,
-    ctype: ChunkType,
+    pub ctype: ChunkType,
     date: Vec<u8>,
     chcrc: u32,
 }
@@ -57,7 +58,7 @@ impl fmt::Display for Chunk {
 }
 
 impl Chunk {
-    fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
+    pub fn new(chunk_type: ChunkType, data: Vec<u8>) -> Chunk {
         let c:Crc<u32> = crc::Crc::<u32>::new(&crc::CRC_32_ISO_HDLC);
         let crcdate:Vec<u8> = chunk_type.chunk_type.iter().chain(data.iter()).cloned().collect();
         Chunk { length: data.len() as u32, ctype: chunk_type, date: data, chcrc: c.checksum(&crcdate) }
@@ -67,7 +68,7 @@ impl Chunk {
         self.length
     }
 
-    fn chunk_type(&self) -> &ChunkType {
+    pub fn chunk_type(&self) -> &ChunkType {
         &self.ctype
     }
 
@@ -79,7 +80,7 @@ impl Chunk {
         self.chcrc
     }
 
-    fn data_as_string(&self) -> Result<String,()> {
+    pub fn data_as_string(&self) -> Result<String,()> {
         let data = self.data().clone();
         let s = String::from_utf8(data.to_vec()).unwrap();
         Ok(s)
