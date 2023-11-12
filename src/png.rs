@@ -1,5 +1,4 @@
 use core::fmt;
-use std::fmt::write;
 
 use crate::chunk::Chunk;
 
@@ -13,7 +12,7 @@ pub struct Png{
 
 impl TryFrom<&[u8]> for Png {
     type Error = &'static str;
-
+    // 实现从u8切片转换为png
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         let v_head:[u8;8] = [value[0],value[1],value[2],value[3],value[4],value[5],value[6],value[7]];
         if v_head != Png::STANDARD_HEADER {
@@ -45,17 +44,21 @@ impl fmt::Display for Png {
 }
 
 impl Png {
+    // png文件固定头部
     pub const STANDARD_HEADER:[u8;8] = [137,80,78,71,13,10,26,10];
-
-    fn from_chunks(chunks: Vec<Chunk>) -> Png {
+    
+    // 从chunk块生成png文件
+    pub fn from_chunks(chunks: Vec<Chunk>) -> Png {
         Png { head: Png::STANDARD_HEADER, chunks: chunks }
     }
 
-    fn append_chunk(&mut self, chunk: Chunk) {
+    // 向png文件中添加一个块
+    pub fn append_chunk(&mut self, chunk: Chunk) {
         self.chunks.push(chunk);
     }
 
-    fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk,String> {
+    // 移除指定类型的块
+    pub fn remove_chunk(&mut self, chunk_type: &str) -> Result<Chunk,String> {
         let length = self.chunks.len();
         for i in 0..length {
             if self.chunks[i].ctype.to_string() == chunk_type.to_string() {
@@ -66,15 +69,18 @@ impl Png {
         Err("未找到指定块".to_string())
     }
 
-    fn header(&self) -> &[u8; 8] {
+    // 返回png文件固定头部
+    pub fn header(&self) -> &[u8; 8] {
         &Png::STANDARD_HEADER
     }
 
-    fn chunks(&self) -> &[Chunk] {
+    // 返回png文件中所有块
+    pub fn chunks(&self) -> &[Chunk] {
         &self.chunks
     }
 
-    fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
+    // 根据块类型来查找指定块
+    pub fn chunk_by_type(&self, chunk_type: &str) -> Option<&Chunk> {
         for i in &self.chunks {
             if i.ctype.to_string() == chunk_type.to_string() {
                 return Some(&i)
@@ -83,7 +89,8 @@ impl Png {
         None
     }
 
-    fn as_bytes(&self) -> Vec<u8> {
+    // 将png文件转换为字节数组
+    pub fn as_bytes(&self) -> Vec<u8> {
         let mut res = Vec::new();
         for i in self.head {
             res.push(i);
